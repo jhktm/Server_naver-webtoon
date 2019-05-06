@@ -5,6 +5,7 @@ error_reporting(E_ALL);
 
 require 'pdoConnect.php';
 
+
 function test()
 {
     $pdo = pdoSqlConnect();
@@ -30,6 +31,19 @@ function getUserType($userId)
     $st = null;
     $pdo = null;
     return $res[User_Type];
+}
+function getToken($userId)
+{
+    $pdo = pdoSqlConnect();
+    $query = "SELECT User_Token FROM User_TB where User_Id = :userid;";
+    $st = $pdo->prepare($query);
+    $st->bindParam(':userid', $userId);
+    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetch();
+    $st = null;
+    $pdo = null;
+    return $res[User_Token];
 }
 
 function ValidHeader($userId)
@@ -89,6 +103,20 @@ function MakeUser($userId, $userPw, $userMail, $userTel)
     $pdo = null;
     return; //있으면 1 없으면 0
 }
+function register($fcmToken,$userId){
+    $pdo = pdoSqlConnect();
+
+    $query = "update User_TB set User_Token = :userToken where User_Id = :userId ";
+    $st = $pdo->prepare($query);
+
+    $st->bindParam(':userToken', $fcmToken);
+    $st->bindParam(':userId', $userId);
+    $st->execute();
+    $st = null;
+    $pdo = null;
+    return; //있으면 1 없으면 0
+}
+
 function deleteUser($userId, $userPw)
 {
     $pdo = pdoSqlConnect();
@@ -135,7 +163,7 @@ function ComicDay($day)
 function ComicContent($comicNo)
 {
     $pdo = pdoSqlConnect();
-    $st = $pdo->prepare('SELECT * FROM Content_TB where Comic_No = :comicno order by Content_No desc limit 5');
+    $st = $pdo->prepare('SELECT * FROM Content_TB where Comic_No = :comicno order by Content_No desc limit 15');
     $st->bindParam(':comicno', $comicNo);
     $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -183,10 +211,10 @@ function Content($contentNo)
     return $res;
 }
 
-function firstContent($userNo, $ComicNo)
+function firstContent($ComicNo)
 {
     $pdo = pdoSqlConnect();
-    $st = $pdo->prepare('SELECT cm.Comic_Name , ct.Content_Name , ct.Content_Content 
+    $st = $pdo->prepare('SELECT ct.* 
 FROM Comic_TB as cm join Content_TB as ct on cm.Comic_No = ct.Comic_No
 where cm.Comic_No = :comicno');
     $st->bindParam(':comicno', $ComicNo);
@@ -278,7 +306,37 @@ function DeleteComment($userNo, $commentNo)
     $pdo = null;
     return $message;
 }
+function CheckLike($userNo, $postNo,$Post_Type){
+    $pdo = pdoSqlConnect();
+    $st = $pdo->prepare('Select * from Heart_TB where  User_No = :userno and Post_No = :postno and Post_Type =:posttype');
+    $st->bindParam(':userno', $userNo);
+    $st->bindParam(':postno', $postNo);
+    $st->bindParam(':posttype', $Post_Type);
+    $st->execute();
+    $res = $st->fetch();
 
+    if ($res["Heart_No"]) {// 있을때
+        $check = 1;
+    } else { // 없을때
+        $check = 0;
+    }
+    return $check;
+}
+
+function commentNumber($contentNo){
+    $pdo = pdoSqlConnect();
+    $st = $pdo->prepare('Select COUNT(Comment_No) as countsum from Comment_TB where  Content_No = :contentno');
+    $st->bindParam(':contentno', $contentNo);
+    $st->execute();
+    $res = $st->fetch();
+
+    if ($res["countsum"]) {// 있을때
+        $check = $res["countsum"];
+    } else { // 없을때
+        $check = 0;
+    }
+    return $check;
+}
 function ComicLike($userNo, $comicNo)
 {
     $pdo = pdoSqlConnect();
@@ -293,13 +351,11 @@ function ComicLike($userNo, $comicNo)
         $st->bindParam(':comicno', $comicNo);
         $st->bindParam(':userno', $userNo);
         $st->execute();
-        $message = "만화에 좋아요 취소";
     } else { // 없을때
         $st = $pdo->prepare('insert into Heart_TB(User_No, Post_No , Post_Type)  values (:userno,:comicno,1)');
         $st->bindParam(':comicno', $comicNo);
         $st->bindParam(':userno', $userNo);
         $st->execute();
-        $message = "만화 좋아요 누름!";
     }
 
     $st = $pdo->prepare('SELECT COUNT(Heart_No) as countsum fROM Heart_TB where Post_No = :comicno and Post_Type = 1');
@@ -314,16 +370,14 @@ function ComicLike($userNo, $comicNo)
 
     $st->execute();
 
-
-    $st = $pdo->prepare('Select * from Comic_TB where  Comic_No = :comicno ');
+    $st = $pdo->prepare('Select Comic_Heart from Comic_TB where  Comic_No = :comicno ');
     $st->bindParam(':comicno', $comicNo);
     $st->execute();
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
-
+    $res = $st->fetch();
+    $like = $res["Comic_Heart"];
     $st = null;
     $pdo = null;
-    return $message;
+    return $like;
 }
 
 function ContentLike($userNo, $contnetNo)
@@ -362,15 +416,16 @@ function ContentLike($userNo, $contnetNo)
     $st->execute();
 
 
-    $st = $pdo->prepare('Select * from Content_TB where  Content_No = :contentno ');
+    $st = $pdo->prepare('Select Content_Heart from Content_TB where  Content_No = :contentno ');
     $st->bindParam(':contentno', $contnetNo);
     $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
+    $res = $st->fetch();
+    $like = $res["Content_Heart"];
 
     $st = null;
     $pdo = null;
-    return $message;
+    return $like;
 }
 
 function CommentLike($userNo, $commentNo)
@@ -407,9 +462,16 @@ function CommentLike($userNo, $commentNo)
     $st->bindParam(':commentno', $commentNo);
     $st->execute();
 
+
+    $st = $pdo->prepare('Select Comment_Like from Comment_TB where  Comment_No = :commentno ');
+    $st->bindParam(':commentno', $commentNo);
+    $st->execute();
+    $res = $st->fetch();
+    $like = $res["Comment_Like"];
+
     $st = null;
     $pdo = null;
-    return $message;
+    return $like;
 }
 function CommentDislike($userNo, $commentNo)
 {
@@ -445,9 +507,15 @@ function CommentDislike($userNo, $commentNo)
     $st->bindParam(':commentno', $commentNo);
     $st->execute();
 
+    $st = $pdo->prepare('Select Comment_DisLike from Comment_TB where  Comment_No = :commentno ');
+    $st->bindParam(':commentno', $commentNo);
+    $st->execute();
+    $res = $st->fetch();
+    $like = $res["Comment_DisLike"];
+
     $st = null;
     $pdo = null;
-    return $message;
+    return $like;
 }
 
 function ContentRate($userNo, $contentNo, $contentRate)
@@ -522,6 +590,7 @@ where  Content_No = :contentno ');
     $res = $st->fetchAll();
     $st = null;
     $pdo = null;
+    $message = "평점을 주었습니다.";
     return $res;
 }
 

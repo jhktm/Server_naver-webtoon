@@ -19,7 +19,8 @@ $dispatcher = FastRoute\simpleDispatcher(function(FastRoute\RouteCollector $r) {
     $r->addRoute('POST', '/user', 'user');
     $r->addRoute('DELETE', '/user','deleteUser');
     $r->addRoute('GET', '/token/{id}/{pw}', 'token');
-
+    $r->addRoute('POST', '/user/fcm', 'fcmToken');
+    $r->addRoute('GET', '/push', 'pushNow');
 
     $r->addRoute('POST', '/my/comic', 'myComic');
     $r->addRoute('GET', '/my/comic/list', 'myComicList');
@@ -28,7 +29,7 @@ $dispatcher = FastRoute\simpleDispatcher(function(FastRoute\RouteCollector $r) {
     $r->addRoute('GET', '/comic/all', 'comicAll');
     $r->addRoute('GET', '/comic/day/{day}', 'comicDay');
     $r->addRoute('POST', '/comic/like','comicLike');
-    $r->addRoute('GET', '/comic/{input}','comicSearch');
+    $r->addRoute('GET', '/comics/{input}','comicSearch');
 
     $r->addRoute('GET', '/comic/contentAll/{comicno}', 'contentAll');
     $r->addRoute('GET', '/comic/contents/{contentno}', 'pagingContent');
@@ -44,6 +45,11 @@ $dispatcher = FastRoute\simpleDispatcher(function(FastRoute\RouteCollector $r) {
     $r->addRoute('POST', '/comic/content/comment/like', 'commentLike');
     $r->addRoute('POST', '/comic/content/comment/dislike', 'commentDislike');
     $r->addRoute('DELETE', '/comic/content/comment','deleteComment');
+
+    $r->addRoute('GET', '/mail/{mail}','mailSend');
+    $r->addRoute('POST','/file','fileUpload');
+
+
 
 
 

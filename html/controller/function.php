@@ -8,6 +8,7 @@ use Google\Auth\ApplicationDefaultCredentials;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 
+require 'key.php';
 
 function getSQLErrorException($errorLogs, $e, $req)
 {
@@ -109,6 +110,98 @@ function sendFcm($fcmToken, $data, $key, $deviceType)
     return $result;
 }
 
+/*
+ * AUTHOR : YOUNGMINJUN
+ *
+ * $EMAIL : 보내는 사람 메일 주소
+ * $NAME : 보내는 사람 이름
+ * $SUBJECT : 메일 제목
+ * $CONTENT : 메일 내용
+ * $MAILTO : 받는 사람 메일 주소
+ * $MAILTONAME : 받는 사람 이름
+ */
+function sendMail($EMAIL, $NAME, $SUBJECT, $CONTENT, $MAILTO, $MAILTONAME)
+{
+    $mail = new PHPMailer();
+    $body = $CONTENT;
+
+    $mail->IsSMTP(); // telling the class to use SMTP
+    //$mail->Host       = "www.softcomics.co.kr"; // SMTP server
+    $mail->SMTPDebug = 2;                     // enables SMTP debug information (for testing)
+    // 1 = errors and messages
+    // 2 = messages only
+    $mail->CharSet = "utf-8";
+    $mail->SMTPAuth = true;                  // enable SMTP authentication
+    $mail->SMTPSecure = "ssl";                 // sets the prefix to the servier
+    $mail->Host = "smtp.gmail.com";      // sets GMAIL as the SMTP server
+    $mail->Port = 465;                   // set the SMTP port for the GMAIL server
+    $mail->Username = "jhktm1729@gmail.com";             // GMAIL username
+    $mail->Password = MAIL_PW;              // GMAIL password
+
+    $mail->SetFrom($EMAIL, $NAME);
+
+    $mail->AddReplyTo($EMAIL, $NAME);
+
+    $mail->Subject = $SUBJECT;
+
+    $mail->MsgHTML($body);
+
+    $address = $MAILTO;
+    $mail->AddAddress($address, $MAILTONAME);
+
+    if (!$mail->Send()) {
+        echo "Mailer Error: " . $mail->ErrorInfo;
+    } else {
+        echo "Message sent!";
+    }
+}
+
+function formSubmit($file)
+{
+    $target_dir = "uploads/";
+    $target_file = $target_dir . basename($_FILES[$file]["name"]);
+    $uploadOk = 1;
+    $imageFileType = pathinfo($target_file,PATHINFO_EXTENSION);
+// Check if image file is a actual image or fake image
+    if(isset($_POST["submit"])) {
+        $check = getimagesize($_FILES[$file]["tmp_name"]);
+        if($check !== false) {
+            echo "File is an image - " . $check["mime"] . ".";
+            $uploadOk = 1;
+        } else {
+            echo "File is not an image.";
+            $uploadOk = 0;
+        }
+    }
+// Check if file already exists
+    if (file_exists($target_file)) {
+        echo "Sorry, file already exists.";
+        $uploadOk = 0;
+    }
+// Check file size
+    if ($_FILES[$file]["size"] > 500000) {
+        echo "Sorry, your file is too large.";
+        $uploadOk = 0;
+    }
+// Allow certain file formats
+    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
+        && $imageFileType != "gif" ) {
+        echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
+        $uploadOk = 0;
+    }
+// Check if $uploadOk is set to 0 by an error
+    if ($uploadOk == 0) {
+        echo "Sorry, your file was not uploaded.";
+// if everything is ok, try to upload file
+    } else {
+        if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+            echo "The file ". basename( $_FILES["fileToUpload"]["name"]). " has been uploaded.";
+        } else {
+            echo "Sorry, there was an error uploading your file.";
+        }
+    }
+
+}
 
 function checkAndroidBillingReceipt($credentialsPath, $token, $pid)
 {
@@ -205,4 +298,3 @@ function getLogs($path)
 //        fpassthru($fp);
     fclose($fp);
 }
-

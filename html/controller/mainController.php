@@ -136,9 +136,10 @@ try {
            * 마지막 수정 날짜 : 19.03.25
            */
 
-        case "token":
-            $userId = $vars["id"];
-            $userPw = $vars["pw"];
+        case "fcmToken":
+            $userId = $req->id;
+            $userPw = $req->pw;
+            $token = $req->token;
 
             if (!ValidHeader($userId)) {
                 $res->code = 200;
@@ -157,6 +158,7 @@ try {
             $jwt = getJWToken($userId, $userPw, $userType, JWT_SECRET_KEY);
             $res->result->jwt = $jwt;
             // jwt 유효성 검사
+
             if (!isValidHeader($jwt, JWT_SECRET_KEY)) {
                 $res->isSuccess = FALSE;
                 $res->code = 205;
@@ -165,8 +167,11 @@ try {
                 addErrorLogs($errorLogs, $res, $req);
                 return;
             }
+
+            register($token,$userId);
+
             $res->code = 100;
-            $res->message = "토큰 생성";
+            $res->message = "토큰 생성 및 fdm저장";
             echo json_encode($res);
             $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
             $userId = $userInfo->userId;
@@ -237,6 +242,10 @@ try {
                     addErrorLogs($errorLogs, $res, $req);
                     return;
                 } else {
+                    $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
+                    $userId = $userInfo->userId;
+                    $userNo = getNo($userId);
+                    $res->check = CheckLike($userNo, $comicNo,1);
                 }
             }
 
@@ -259,6 +268,9 @@ try {
                     addErrorLogs($errorLogs, $res, $req);
                     return;
                 } else {
+                    $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
+                    $userId = $userInfo->userId;
+                    $userNo = getNo($userId);
                 }
             }
 
@@ -284,9 +296,16 @@ try {
                     addErrorLogs($errorLogs, $res, $req);
                     return;
                 } else {
+                    $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
+                    $userId = $userInfo->userId;
+                    $userNo = getNo($userId);
+                    $res->check = CheckLike($userNo, $contentNo,2);
+
+
                 }
             }
             $res->result = Content($contentNo);
+            $res->comment = commentNumber($contentNo);
             $res->code = 100;
             $res->message = "테스트 성공";
             echo json_encode($res, JSON_NUMERIC_CHECK);
@@ -310,11 +329,12 @@ try {
                 } else {
                     $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
                     $userId = $userInfo->userId;
-                    $data = Comment($contentNo);
+
                 }
             } else {
 
             }
+            $data = Comment($contentNo);
             $res->data = $data;
             $res->code = 100;
             $res->message = "테스트 성공";
@@ -443,10 +463,10 @@ try {
                     $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
                     $userId = $userInfo->userId;
                     $userNo = getNo($userId);
-                    $message = ComicLike($userNo, $comicNo);
+                    $like = ComicLike($userNo, $comicNo);
 
                     $res->code = 100;
-                    $res->message = "$message";
+                    $res->like= $like;
                 }
 
             } else {
@@ -547,7 +567,7 @@ try {
 
                 }
             }
-            $data = firstContent($userNo, $comicNo);
+            $data = firstContent($comicNo);
             $res->code = 100;
             $res->list = $data;
 
@@ -574,9 +594,9 @@ try {
                     $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
                     $userId = $userInfo->userId;
                     $userNo = getNo($userId);
-                    $message = ContentLike($userNo, $contentNo);
+                    $like = ContentLike($userNo, $contentNo);
                     $res->code = 100;
-                    $res->message = $message;
+                    $res->like = $like;
                 }
             } else {
                 $res->code = 200;
@@ -605,7 +625,7 @@ try {
                     $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
                     $userId = $userInfo->userId;
                     $userNo = getNo($userId);
-                    $message = CommentLike($userNo, $commentNo);
+                    $like = CommentLike($userNo, $commentNo);
 
                     $res->code = 100;
                 }
@@ -613,7 +633,7 @@ try {
                 $res->code = 200;
                 $res->message = "로그인이 필요한 서비스 입니다.";
             }
-            $res->message = $message;
+            $res->like = $like;
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
         /*
@@ -712,7 +732,7 @@ try {
                     $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
                     $userId = $userInfo->userId;
                     $userNo = getNo($userId);
-                    $message = CommentDislike($userNo, $commentNo);
+                    $dislike = CommentDislike($userNo, $commentNo);
 
                     $res->code = 100;
                 }
@@ -720,7 +740,158 @@ try {
                 $res->code = 200;
                 $res->message = "로그인이 필요한 서비스 입니다.";
             }
-            $res->message = $message;
+            $res->dislike = $dislike;
+            echo json_encode($res, JSON_NUMERIC_CHECK);
+            break;
+        /*
+        * API No. 20
+        * API Name : 푸쉬알림
+        * 마지막 수정 날짜 : 19.04.02
+        */
+        case "pushNow":
+            $jwt = $_SERVER['HTTP_X_ACCESS_TOKEN'];
+            // jwt 유효성 검사
+            if ($jwt) {
+                if (!isValidHeader($jwt, JWT_SECRET_KEY)) {
+                    $res->isSuccess = FALSE;
+                    $res->code = 205;
+                    $res->message = "유효하지 않은 토큰입니다";
+                    echo json_encode($res, JSON_NUMERIC_CHECK);
+                    addErrorLogs($errorLogs, $res, $req);
+                    return;
+                } else {
+                    $userInfo = getDataByJWToken($jwt, JWT_SECRET_KEY);
+                    $userId = $userInfo->userId;
+                    $token = getToken($userId);
+                    $myMessage = "푸쉬 성공!";
+                    $message_status=sendFcm($token, $myMessage, GOOGLE_API_KEY);
+                    $res->code = 100;
+                    $res->message = $message_status;
+                }
+            } else {
+                $res->code = 200;
+                $res->message = "로그인이 필요한 서비스 입니다.";
+            }
+
+            echo json_encode($res, JSON_NUMERIC_CHECK);
+            break;
+        case "mailSend":
+            $mail = $vars['mail'];
+            $check_email = filter_var($mail, FILTER_VALIDATE_EMAIL);
+            if ($check_email == true) {
+
+                sendMail(MAIL_ADDRESS, "jihwan_kim", "메일 제목입니다.", "이메일 보내보기.",$mail, "jihwan_kim");
+                $res->code = 100;
+                $res->message = "이메일 전송되었습니다.";
+
+            }else{
+                $res->code = 200;
+                $res->message = "잘못된 이메일 형식";
+            }
+            echo json_encode($res, JSON_NUMERIC_CHECK);
+            break;
+
+        case "fileUpload":
+            $file_name = $_FILES['upload_file']['name'];                // 업로드한 파일명
+            $file_tmp_name = $_FILES['upload_file']['tmp_name'];   // 임시 디렉토리에 저장된 파일명
+            $file_size = $_FILES['upload_file']['size'];                 // 업로드한 파일의 크기
+            $mimeType = $_FILES['upload_file']['type'];                 // 업로드한 파일의 MIME Type
+// 첨부 파일이 저장될 서버 디렉토리 지정(원하는 경로에 맞게 수정하세요)
+
+            $save_dir = './img/test/';
+
+
+
+// 업로드 파일 확장자 검사 (필요시 확장자 추가)
+
+            if($mimeType=="html" ||
+
+                $mimeType=="htm" ||
+
+                $mimeType=="php" ||
+
+                $mimeType=="php3" ||
+
+                $mimeType=="inc" ||
+
+                $mimeType=="pl" ||
+
+                $mimeType=="cgi" ||
+
+                $mimeType=="txt" ||
+
+                $mimeType=="TXT" ||
+
+                $mimeType=="asp" ||
+
+                $mimeType=="jsp" ||
+
+                $mimeType=="phtml" ||
+
+                $mimeType=="js" ||
+
+                $mimeType=="") {
+
+                echo("업로드할수 없는 파일형식");
+
+                exit;
+
+            }
+            // 파일명 변경 (업로드되는 파일명을 별도로 생성하고 원래 파일명을 별도의 변수에 지정하여 DB에 기록할 수 있습니다.)
+            $real_name = $file_name;     // 원래 파일명(업로드 하기 전 실제 파일명)
+
+            $arr = explode(".", $real_name);	 // 원래 파일의 확장자명을 가져와서 그대로 적용 $file_exe
+
+            $arr1 = $arr[0];
+            $arr2 = $arr[1];
+            $arr3 = $arr[2];
+            $arr4 = $arr[3];
+            if($arr4) {
+
+                $file_exe = $arr4;
+
+            } else if($arr3 && !$arr4) {
+
+                $file_exe = $arr3;
+
+            } else if($arr2 && !$arr3) {
+
+                $file_exe = $arr2;
+
+            }
+            $file_time = time();
+
+            $file_Name = "file_".$file_time.".".$file_exe;	 // 실제 업로드 될 파일명 생성	(본인이 원하는 파일명 지정 가능)
+
+            $change_file_name = $file_Name;			 // 변경된 파일명을 변수에 지정
+
+            $real_name = addslashes($real_name);		// 업로드 되는 원래 파일명(업로드 하기 전 실제 파일명)
+
+            $real_size = $file_size;                         // 업로드 되는 파일 크기 (byte)
+
+//파일을 저장할 디렉토리 및 파일명 전체 경로
+            $dest_url = $save_dir . $change_file_name;
+//파일을 지정한 디렉토리에 업로드
+            if(!move_uploaded_file($file_tmp_name, $dest_url))
+
+            {
+                die("파일을 지정한 디렉토리에 업로드하는데 실패했습니다.");
+
+            }
+
+// DB에 기록할 파일 변수 (DB에 저장이 필요한 경우 아래 변수명을 기록하시면 됩니다.)
+
+            /*
+
+                $change_file_name : 실제 서버에 업로드 된 파일명. 예: file_145736478766.gif
+
+                $real_name : 원래 파일명. 예: 풍경사진.gif
+
+                $real_size : 파일 크기(byte)
+
+            */
+
+            $res->code = 100;
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
     }
