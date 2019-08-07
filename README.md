@@ -1,11 +1,7 @@
-
-## Front end
-* HTML
-* Css
-
 ## Back End
-* MonggoDB
-* Heroku
+* AWS
+* PHP
+* MySQL
 
 ## 1. first commit 2019-04-17
 네이버 웹툰 카피앱을 위한 서버 php  코드
